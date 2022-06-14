@@ -1,3 +1,19 @@
 ﻿@inherits LayoutComponentBase
 
-@Body
+<div class="page bg-dark text-light">
+    <div class="main">
+        <div class="container min-vh-100 content d-flex">
+            <div class="row flex-grow-1">
+                <div class="col-md-4">
+                    <h1 class="display-4">klip</h1>
+                    <p class="lead">A client-side paste app.</p>
+                    <p>Never lose a paste again. Your 'klips' are first compressed using LZMA, and then encoded into Base64. The result is encoded into your URL, which can be easily decoded in the future should the service ever disappear.</p>
+                    <small class="text-muted">Written with BlazorWASM by Leif Walker-Grant</small>
+                </div>
+                <div class="col-md-8 d-flex">
+                    @Body
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
