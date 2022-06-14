@@ -1,0 +1,101 @@
+﻿@page "/"
+@page "/{pasta}"
+
+@using System.IO
+@using System.IO.Compression
+@using System.Text
+
+@inject NavigationManager navManager
+@inject IJSRuntime JSRuntime
+
+<form class="fill-viewport d-flex flex-column">
+    <div class="form-group flex-grow-1 d-flex flex-column">
+        <textarea class="form-control flex-grow-1" id="inputTextArea" @bind="@Decoded" @oninput="@PasteChangedAsync"></textarea>
+    </div>
+    <div class="input-group input-group-sm">
+        <input class="form-control" type="text" id="outputTextArea" @bind="@Encoded" readonly />
+        <span class="input-group-text">@CompressionRatio CR</span>
+        <button class="btn btn-outline-secondary" type="button" @onclick="@CopyUrlToClipboard">Copy URL</button>
+        <button class="btn btn-outline-secondary" type="button" @onclick="@CopyMarkdownToClipboard">Copy Markdown</button>
+    </div>          
+</form>
+
+@code {
+    [Parameter]
+    public string Pasta { get; set; }
+
+    public string Decoded { get; private set; } = string.Empty;
+
+    public string Encoded { get; private set; } = string.Empty;
+
+    public string CompressionRatio { get; private set; }
+
+    private void UpdateCompressionRatio()
+    {
+        if (string.IsNullOrEmpty(Decoded))
+        {
+            CompressionRatio = "∞";
+            return;
+        }
+
+        float antecedent = (float)Decoded.Length / (float)Encoded.Length;
+        float consequent = antecedent < 1 ? 1 / antecedent : 1;
+        antecedent = antecedent < 1 ? 1 : antecedent;
+
+        CompressionRatio = $"~{Math.Ceiling(antecedent)}:{Math.Ceiling(consequent)}";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var encoded = Pasta ?? string.Empty;
+        var unescaped = Uri.UnescapeDataString(encoded);
+        var bytes = Convert.FromBase64String(unescaped);
+        using var oms = new MemoryStream();
+
+        using (var ims = new MemoryStream(bytes))
+        using (var ds = new GZipStream(ims, CompressionMode.Decompress))
+        {
+            await ds.CopyToAsync(oms);
+        }
+
+        var inflated = oms.ToArray();
+        var decoded = Encoding.UTF8.GetString(inflated);
+
+        Decoded = decoded;
+        Encoded = encoded;
+        UpdateCompressionRatio();
+    }
+
+    protected async Task PasteChangedAsync(ChangeEventArgs args)
+    {
+        var plaintext = args.Value.ToString();
+        var bytes = Encoding.UTF8.GetBytes(plaintext);
+
+        using var oms = new MemoryStream();
+        using (var ds = new GZipStream(oms, CompressionLevel.Optimal))
+        {
+            await ds.WriteAsync(bytes, 0, bytes.Length);
+        }
+
+        var deflated = oms.ToArray();
+        var encoded = Convert.ToBase64String(deflated);
+        var escaped = Uri.EscapeDataString(encoded);
+
+        Encoded = encoded;
+        UpdateCompressionRatio();
+    }
+
+    protected async Task CopyUrlToClipboard()
+    {
+        var escaped = Uri.EscapeDataString(Encoded);
+        var uri = $"{navManager.BaseUri}{escaped}";
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", uri);
+    }
+
+    protected async Task CopyMarkdownToClipboard()
+    {
+        var escaped = Uri.EscapeDataString(Encoded);
+        var markdown = $"[paste]({navManager.BaseUri}{escaped})";
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", markdown);
+    }
+}
