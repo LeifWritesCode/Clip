@@ -86,15 +86,13 @@
 
     protected async Task CopyUrlToClipboard()
     {
-        var escaped = Uri.EscapeDataString(Encoded);
-        var uri = $"{navManager.BaseUri}{escaped}";
-        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", uri);
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", navManager.Uri);
     }
 
     protected async Task CopyMarkdownToClipboard()
     {
         var escaped = Uri.EscapeDataString(Encoded);
-        var markdown = $"[paste]({navManager.BaseUri}{escaped})";
+        var markdown = $"[klipping]({navManager.Uri})";
         await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", markdown);
     }
 }
